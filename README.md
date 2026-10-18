@@ -8,7 +8,7 @@ A minimal personal time tracker for Windows (C# / .NET): a thin colored line at 
 ## Status: step 2
 
 Done: status line, tray icon, task management window, `hours.xlsx` with file lock and edit mode, `current_task.txt`, `settings.json`, session lock (Win+L) question and startup check.
-Remaining: final build / publish notes, validation on the real PC.
+Remaining: final build / publish notes.
 
 ## Usage
 

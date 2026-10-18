@@ -1,98 +1,36 @@
 # Time Tracker
 
-A minimal personal time tracker for Windows (C# / .NET): a thin colored line at the top of the screen, a tray icon, and all data in a single local `hours.xlsx` file.
+A minimal time tracker for Windows. It stays out of the way: a thin colored line at the top of the screen tells you which task is running, and all your hours go into a plain Excel file on your PC.
 
-- Specification: [docs/PROMPT.md](docs/PROMPT.md)
-- Interactive UI mockup: https://claude.ai/artifact/6VbbWGJqTxWDKTyER8p2Sy (private)
+No account, no cloud, no telemetry. One `.exe`, nothing to install.
 
-## Status: step 2
+## Features
 
-Done: status line, tray icon, task management window, `hours.xlsx` with file lock and edit mode, `current_task.txt`, `settings.json`, session lock (Win+L) question and startup check.
-Remaining: final build / publish notes.
+- **Always-visible status line**: a few pixels in the color of the current task (gray when paused), on every screen and every virtual desktop, even over fullscreen apps. Click it to switch tasks.
+- **Tray icon**: hover for the current task and elapsed time.
+- **Quick task switcher**: click a task to start it, Pause / Resume, create tasks with tags and colors.
+- **Your data in Excel**: everything lives in `hours.xlsx` (tasks, start / pause events, and a daily summary per task and tag, ready to filter). Edit it by hand whenever you want; the app steps aside while it is open.
+- **Forgiving**: after you lock your PC for a while, it asks whether that was a break; if you forgot to pause yesterday, it asks when you stopped.
+- **Daily backups** of the data file.
 
-## Usage
+## Install
 
-- **Status line**: color of the current task, gray when paused. One per screen. Left click opens / closes the task window, like the tray icon; about 40 px at each end stay click-through (e.g. for the close button of a maximized window). `"LineClickable": false` makes the whole line click-through.
-- **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → the version (grayed, e.g. `Time Tracker 1.0.0+354ed49`; `0.0.0-dev` for a local build), **Settings…** (opens `settings.json`), **Restart**, **Exit**. A yellow dot means the file is open for editing.
-- **Task window**: Pause / Resume in the header; click a task to start it (most recently used first); pencil to edit name, tags and color; "+ New task" suggests a color automatically ("Other" for another suggestion). Closes when it loses focus or on Esc.
-- **Edit in Excel**: the app releases the file, opens it in its default program and writes nothing until the file is closed again; then it reloads everything. If the editor does not lock the file, use "Done, reload".
-- **After a session lock** (Win+L) longer than `UnlockQuestionMinutes` with a task running, the app asks what it was: **Break** (adds a Pause at the lock time and restarts the task at the unlock time), **Still on** the task (adds nothing), or **Another task…** (starts the chosen task at the lock time). Not asked in edit mode.
-- **At startup**, if a task has been running since a previous day (forgot to pause, or shut down while locked), the app asks what time you stopped and adds a Pause then, on the start's day. **Skip** adds nothing.
-- In both questions, Esc changes nothing.
+Download `TimeTracker.exe` from the [Releases](https://github.com/ewoij/time-tracker/releases) page and run it. Windows 10 / 11.
 
-## Settings
-
-`settings.json` next to the exe, created with the defaults on first run. Paths may use environment variables. Changes apply on restart: use **Settings…** in the tray menu, save the file, then **Restart**. If .json files have no default program, Notepad is used.
-
-```json
-{
-  "DataFile": "%USERPROFILE%\\Documents\\TimeTracker\\hours.xlsx",
-  "CurrentTaskFile": "%USERPROFILE%\\Documents\\TimeTracker\\current_task.txt",
-  "LinePosition": "Top",
-  "LineThickness": 3,
-  "LineClickable": true,
-  "UnlockQuestionMinutes": 5,
-  "LaunchAtStartup": false,
-  "BackupCount": 30
-}
-```
-
-- `LinePosition`: `Top` or `Bottom`. `LineThickness`: pixels.
-- `LineClickable`: a click on the status line (except near its ends) opens / closes the task window; `false` keeps it fully click-through.
-- `UnlockQuestionMinutes`: minimum lock duration before the session lock question.
-- `LaunchAtStartup`: adds / removes the app in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
-- `BackupCount`: number of daily backups kept.
-
-## Data
-
-`hours.xlsx` is the only data store, created if missing:
-
-- **Tasks** sheet: `ID | Name | Tags | Color` (e.g. `T1 | Monthly report | #clientA, #billable | #2F6FD6`).
-- **Events** sheet: `Timestamp | Type | Task ID`, with `Type` = `Start` or `Pause`. Durations are the time until the next event.
-- **Summary** sheet: `Date | Task ID | Task | Tags | Hours`, one row per day and task, as an Excel table: filter by task, tag or day, and the Total row sums the visible rows. It is a derived view, regenerated by the app on every write and after each reload (startup, end of edit mode); it is never read, and hand edits there are overwritten. It reflects the state at the last save: a running task counts up to that moment.
-
-The app keeps the file open and write-locked while it runs (others can only read it), only appends rows to Events, and only changes Tasks when you create or edit a task. Rows can be added anywhere by hand: events are sorted by timestamp when read; unreadable rows are ignored (the window says how many). A task ID missing from Tasks shows as "unknown task (T3)".
-
-Before the first write of each day, a copy is saved to `backups\hours_YYYY-MM-DD.xlsx` next to the file (the newest `BackupCount` are kept).
-
-`current_task.txt` holds one line: the running task's name, or `pause`. For a Bash prompt in WSL:
-
-```bash
-cat /mnt/c/Users/<you>/Documents/TimeTracker/current_task.txt
-```
+Settings (line position and thickness, file paths, launch at startup…) are in `settings.json` next to the exe, reachable from the tray menu.
 
 ## Build
 
-Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download) (`winget install Microsoft.DotNet.SDK.10`).
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```
 dotnet run --project src/TimeTracker
 ```
 
-Single self-contained exe (no .NET needed on the target PC), written to `publish/TimeTracker.exe`:
+## More
 
-```
-dotnet publish src/TimeTracker -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
-```
+[docs/DETAILS.md](docs/DETAILS.md) covers the full behavior, settings, data format, publishing a single exe, making a release and dependencies (all MIT / Apache-2.0).
 
-## Release
+## License
 
-Download `TimeTracker.exe` from the repository's [Releases](https://github.com/ewoij/time-tracker/releases) page.
-
-To make a release: GitHub → **Releases** → **Draft a new release** → create a tag `vX.Y.Z` → **Publish release**. The [Release workflow](.github/workflows/release.yml) builds `TimeTracker.exe` with version `X.Y.Z` and attaches it to the release (about 5 minutes). The version shows at the top of the tray right-click menu.
-
-**Run workflow** on the Actions tab (Release workflow) makes a test build (`0.0.0-ci`) without a release: the exe is in the run's `TimeTracker` artifact.
-
-## Dependencies
-
-All permissive licenses, suitable for professional use:
-
-| Package | License | Role |
-| --- | --- | --- |
-| .NET 10 / Windows Forms | MIT | Runtime and UI |
-| [ClosedXML](https://github.com/ClosedXML/ClosedXML) 0.105.1 | MIT | Read / write `hours.xlsx` |
-| DocumentFormat.OpenXml (+ .Framework) 3.1.1 | MIT | Used by ClosedXML |
-| ClosedXML.Parser 2.0.0 | MIT | Used by ClosedXML |
-| ExcelNumberFormat 1.1.0 | MIT | Used by ClosedXML |
-| RBush.Signed 4.0.0 | MIT | Used by ClosedXML |
-| SixLabors.Fonts 1.0.0 | Apache-2.0 | Used by ClosedXML |
+[MIT](LICENSE)

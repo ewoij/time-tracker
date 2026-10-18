@@ -1,0 +1,48 @@
+# Builds TimeTracker.exe. On a v* tag: attaches it to the GitHub Release for that tag
+# (created if missing). Manual run: workflow artifact only, no release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then version="${GITHUB_REF_NAME#v}"; else version=0.0.0-ci; fi
+          dotnet publish src/TimeTracker -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish \
+            -p:Version="$version" -p:DebugType=none
+
+      - name: Upload workflow artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TimeTracker
+          path: publish/TimeTracker.exe
+
+      - name: Attach to release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" publish/TimeTracker.exe --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" publish/TimeTracker.exe --generate-notes --verify-tag
+          fi

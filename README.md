@@ -13,7 +13,7 @@ Remaining: final build / publish notes, validation on the real PC.
 ## Usage
 
 - **Status line**: color of the current task, gray when paused. One per screen.
-- **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → **Settings…** (opens `settings.json`), **Restart**, **Exit**. A yellow dot means the file is open for editing.
+- **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → the version (grayed, e.g. `Time Tracker 1.0.0+354ed49`; `0.0.0-dev` for a local build), **Settings…** (opens `settings.json`), **Restart**, **Exit**. A yellow dot means the file is open for editing.
 - **Task window**: Pause / Resume in the header; click a task to start it (most recently used first); pencil to edit name, tags and color; "+ New task" suggests a color automatically ("Other" for another suggestion). Closes when it loses focus or on Esc.
 - **Edit in Excel**: the app releases the file, opens it in its default program and writes nothing until the file is closed again; then it reloads everything. If the editor does not lock the file, use "Done, reload".
 - **After a session lock** (Win+L) longer than `UnlockQuestionMinutes` with a task running, the app asks what it was: **Break** (adds a Pause at the lock time and restarts the task at the unlock time), **Still on** the task (adds nothing), or **Another task…** (starts the chosen task at the lock time). Not asked in edit mode.
@@ -72,6 +72,14 @@ Single self-contained exe (no .NET needed on the target PC), written to `publish
 ```
 dotnet publish src/TimeTracker -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
 ```
+
+## Release
+
+Download `TimeTracker.exe` from the repository's [Releases](https://github.com/ewoij/time-tracker/releases) page.
+
+To make a release: GitHub → **Releases** → **Draft a new release** → create a tag `vX.Y.Z` → **Publish release**. The [Release workflow](.github/workflows/release.yml) builds `TimeTracker.exe` with version `X.Y.Z` and attaches it to the release (about 5 minutes). The version shows at the top of the tray right-click menu.
+
+**Run workflow** on the Actions tab (Release workflow) makes a test build (`0.0.0-ci`) without a release: the exe is in the run's `TimeTracker` artifact.
 
 ## Dependencies
 

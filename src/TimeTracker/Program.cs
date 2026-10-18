@@ -102,6 +102,8 @@ sealed class TrackerContext : ApplicationContext
         }
 
         var menu = new ContextMenuStrip();
+        menu.Items.Add(new ToolStripMenuItem("Time Tracker " + DisplayVersion()) { Enabled = false });
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Settings…", null, (_, _) => OpenSettings());
         menu.Items.Add("Restart", null, (_, _) => Restart());
         menu.Items.Add(new ToolStripSeparator());
@@ -121,6 +123,14 @@ sealed class TrackerContext : ApplicationContext
         // A task left running since a previous day: forgot to pause, or shut down while locked.
         if (!EditMode && AskAtStartup(Data, DateTime.Today) is { } start)
             ShowQuestion(new StopTimeQuestion(Data, start, stop => AnswerIfUnchanged(start, () => _file.AppendEvent(stop, "Pause"))));
+    }
+
+    /// <summary>The informational version (e.g. "1.0.0+354ed49…"), with the commit hash shortened to 7 characters.</summary>
+    internal static string DisplayVersion()
+    {
+        var version = Application.ProductVersion;
+        int plus = version.IndexOf('+');
+        return plus >= 0 && version.Length > plus + 8 ? version[..(plus + 8)] : version;
     }
 
     /// <summary>The Start event to ask about at startup: the last event, if it is a Start before today.</summary>

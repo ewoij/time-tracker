@@ -9,6 +9,8 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>TimeTracker</AssemblyName>
     <RootNamespace>TimeTracker</RootNamespace>
+    <!-- Local builds; releases override it with -p:Version=X.Y.Z (see README, Release). -->
+    <Version>0.0.0-dev</Version>
   </PropertyGroup>
 
   <ItemGroup>

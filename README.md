@@ -5,10 +5,10 @@ A minimal personal time tracker for Windows (C# / .NET): a thin colored line at 
 - Specification: [docs/PROMPT.md](docs/PROMPT.md)
 - Interactive UI mockup: https://claude.ai/artifact/6VbbWGJqTxWDKTyER8p2Sy (private)
 
-## Status: step 1
+## Status: step 2
 
-Done: status line, tray icon, task management window, `hours.xlsx` with file lock and edit mode, `current_task.txt`, `settings.json`.
-Next (step 2): session lock (Win+L) question and startup check.
+Done: status line, tray icon, task management window, `hours.xlsx` with file lock and edit mode, `current_task.txt`, `settings.json`, session lock (Win+L) question and startup check.
+Remaining: final build / publish notes, validation on the real PC.
 
 ## Usage
 
@@ -16,6 +16,9 @@ Next (step 2): session lock (Win+L) question and startup check.
 - **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → Exit. A yellow dot means the file is open for editing.
 - **Task window**: Pause / Resume in the header; click a task to start it (most recently used first); pencil to edit name, tags and color; "+ New task" suggests a color automatically ("Other" for another suggestion). Closes when it loses focus or on Esc.
 - **Edit in Excel**: the app releases the file, opens it in its default program and writes nothing until the file is closed again; then it reloads everything. If the editor does not lock the file, use "Done, reload".
+- **After a session lock** (Win+L) longer than `UnlockQuestionMinutes` with a task running, the app asks what it was: **Break** (adds a Pause at the lock time and restarts the task at the unlock time), **Still on** the task (adds nothing), or **Another task…** (starts the chosen task at the lock time). Not asked in edit mode.
+- **At startup**, if a task has been running since a previous day (forgot to pause, or shut down while locked), the app asks what time you stopped and adds a Pause then, on the start's day. **Skip** adds nothing.
+- In both questions, Esc changes nothing.
 
 ## Settings
 
@@ -34,7 +37,7 @@ Next (step 2): session lock (Win+L) question and startup check.
 ```
 
 - `LinePosition`: `Top` or `Bottom`. `LineThickness`: pixels.
-- `UnlockQuestionMinutes`: used from step 2 (session lock question).
+- `UnlockQuestionMinutes`: minimum lock duration before the session lock question.
 - `LaunchAtStartup`: adds / removes the app in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - `BackupCount`: number of daily backups kept.
 

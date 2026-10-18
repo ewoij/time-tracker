@@ -91,6 +91,13 @@ sealed class HoursFile : IDisposable
     public TrackerData AppendEvent(DateTime time, string type, string taskId = "") =>
         Modify(wb => AppendEventRow(Sheet(wb, EventsSheet), time, type, taskId));
 
+    /// <summary>Several events in one write (a single backup and save).</summary>
+    public TrackerData AppendEvents(params (DateTime Time, string Type, string TaskId)[] events) => Modify(wb =>
+    {
+        var ws = Sheet(wb, EventsSheet);
+        foreach (var e in events) AppendEventRow(ws, e.Time, e.Type, e.TaskId);
+    });
+
     /// <summary>Adds the task with the next free ID (T1, T2…) and starts it, in one write.</summary>
     public TrackerData CreateTaskAndStart(string name, string tags, string color, DateTime time) => Modify(wb =>
     {

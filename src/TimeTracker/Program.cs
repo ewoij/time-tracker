@@ -53,6 +53,8 @@ sealed class TrackerContext : ApplicationContext
     readonly System.Windows.Forms.Timer _timer = new() { Interval = 1000 };
     bool _sawOpenElsewhere;
     string? _currentTaskText;
+    DateTime? _lockedAt;
+    QuestionForm? _question;
 
     public TrackerData Data { get; private set; } = TrackerData.Empty;
     /// <summary>The file is released for editing elsewhere: the app writes nothing.</summary>
@@ -91,11 +93,64 @@ sealed class TrackerContext : ApplicationContext
         _tray.Visible = true;
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
         _timer.Tick += (_, _) => OnTick();
         _timer.Start();
 
         RebuildLines();
         Refresh();
+
+        // A task left running since a previous day: forgot to pause, or shut down while locked.
+        if (!EditMode && AskAtStartup(Data, DateTime.Today) is { } start)
+            ShowQuestion(new StopTimeQuestion(Data, start, stop => AnswerIfUnchanged(start, () => _file.AppendEvent(stop, "Pause"))));
+    }
+
+    /// <summary>The Start event to ask about at startup: the last event, if it is a Start before today.</summary>
+    internal static TimeEvent? AskAtStartup(TrackerData data, DateTime today) =>
+        data.Last is { IsStart: true } last && last.Time.Date < today ? last : null;
+
+    /// <summary>
+    /// The Start event to ask about after an unlock: the lock lasted more than the threshold,
+    /// and that task was running when it began, with nothing written since.
+    /// </summary>
+    internal static TimeEvent? AskAfterUnlock(TrackerData data, DateTime lockedAt, DateTime unlockedAt, int thresholdMinutes) =>
+        unlockedAt - lockedAt > TimeSpan.FromMinutes(thresholdMinutes) && data.Last is { IsStart: true } last && last.Time <= lockedAt
+            ? last : null;
+
+    void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
+    {
+        if (e.Reason == SessionSwitchReason.SessionLock) _lockedAt = Now();
+        else if (e.Reason == SessionSwitchReason.SessionUnlock && _lockedAt is { } lockedAt)
+        {
+            _lockedAt = null;
+            OnUnlock(lockedAt, Now());
+        }
+    }
+
+    void OnUnlock(DateTime lockedAt, DateTime unlockedAt)
+    {
+        // In edit mode the app cannot write the answer anyway.
+        if (EditMode || _question != null) return;
+        if (AskAfterUnlock(Data, lockedAt, unlockedAt, _settings.UnlockQuestionMinutes) is not { } running) return;
+        ShowQuestion(new UnlockQuestion(Data, running.TaskId, lockedAt, unlockedAt,
+            onBreak: () => AnswerIfUnchanged(running,
+                () => _file.AppendEvents((lockedAt, "Pause", ""), (unlockedAt, "Start", running.TaskId))),
+            onOtherTask: id => AnswerIfUnchanged(running, () => _file.AppendEvent(lockedAt, "Start", id))));
+    }
+
+    void ShowQuestion(QuestionForm question)
+    {
+        // The task window would hide anyway when the question takes the focus.
+        _window.Hide();
+        _question = question;
+        question.FormClosed += (_, _) => _question = null;
+        question.ShowCentered();
+    }
+
+    /// <summary>Writes the answer, unless something else was written while the question was open.</summary>
+    void AnswerIfUnchanged(TimeEvent askedAbout, Func<TrackerData> write)
+    {
+        if (Data.Last == askedAbout) Write(write);
     }
 
     public void StartTask(string id)
@@ -254,7 +309,7 @@ sealed class TrackerContext : ApplicationContext
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             float inset = size / 8f;
             using (var brush = new SolidBrush(color))
-            using (var path = TaskWindow.RoundedRect(new RectangleF(inset, inset, size - 2 * inset, size - 2 * inset), size / 8f))
+            using (var path = Ui.RoundedRect(new RectangleF(inset, inset, size - 2 * inset, size - 2 * inset), size / 8f))
                 g.FillPath(brush, path);
             if (EditMode)
             {
@@ -295,6 +350,8 @@ sealed class TrackerContext : ApplicationContext
     protected override void ExitThreadCore()
     {
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        _question?.Dispose();
         _timer.Dispose();
         _tray.Visible = false;
         _tray.Dispose();

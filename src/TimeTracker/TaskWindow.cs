@@ -1,5 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
+using static TimeTracker.Ui;
 
 namespace TimeTracker;
 
@@ -10,28 +11,13 @@ namespace TimeTracker;
 /// </summary>
 sealed class TaskWindow : Form
 {
-    static readonly Color Ink = ColorTranslator.FromHtml("#1C1C1E");
-    static readonly Color Muted = ColorTranslator.FromHtml("#4A5562");
     static readonly Color Subtle = ColorTranslator.FromHtml("#5B6570");
-    static readonly Color Border = ColorTranslator.FromHtml("#C9CFD6");
-    static readonly Color Divider = ColorTranslator.FromHtml("#E8EBEF");
-    static readonly Color RowCurrent = ColorTranslator.FromHtml("#EEF1F4");
-    static readonly Color RowHover = ColorTranslator.FromHtml("#F4F6F8");
     static readonly Color ChipBack = ColorTranslator.FromHtml("#E8ECF0");
-    static readonly Color ChipText = ColorTranslator.FromHtml("#3D4752");
     static readonly Color Invalid = ColorTranslator.FromHtml("#FDECEA");
-    static readonly Color ErrorText = ColorTranslator.FromHtml("#B3261E");
     static readonly Color ExcelDot = ColorTranslator.FromHtml("#F5C542");
 
     [DllImport("user32.dll")]
-    static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
-
-
-    [DllImport("dwmapi.dll")]
-    static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
     readonly TrackerContext _app;
     readonly Font _font = new("Segoe UI", 9.75f);
@@ -109,9 +95,7 @@ sealed class TaskWindow : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        // Rounded corners on Windows 11 (ignored on Windows 10).
-        int round = 2;
-        DwmSetWindowAttribute(Handle, 33, ref round, sizeof(int));
+        RoundCorners(Handle);
     }
 
     public void ShowNear(Point cursor)
@@ -456,54 +440,7 @@ sealed class TaskWindow : Form
 
     // ---- Building blocks ----
 
-    /// <summary>Stacks controls vertically at full inner width, with fixed gaps.</summary>
-    sealed class Stack
-    {
-        readonly int _pad;
-        int _y;
-
-        public Stack(int width, int pad)
-        {
-            _pad = pad;
-            _y = pad;
-            Panel = new Panel { Width = width, Height = 2 * pad, Margin = Padding.Empty };
-        }
-
-        public Panel Panel { get; }
-        public int Inner => Panel.Width - 2 * _pad;
-        public Color BackColor { set => Panel.BackColor = value; }
-
-        public T Add<T>(T c, int gapAfter) where T : Control
-        {
-            c.Location = new Point(_pad, _y);
-            if (c is not Label { AutoSize: true }) c.Width = Inner;
-            Panel.Controls.Add(c);
-            _y += c.Height;
-            Panel.Height = _y + _pad;
-            _y += gapAfter;
-            return c;
-        }
-    }
-
-    static Label Wrapped(string text, Font font, Color color, int width) => new()
-    {
-        Text = text, Font = font, ForeColor = color, AutoSize = true, MaximumSize = new Size(width, 0), UseMnemonic = false,
-    };
-
-    Button MakeButton(string text, bool primary)
-    {
-        var b = new Button
-        {
-            Text = text, FlatStyle = FlatStyle.Flat, Font = primary ? _bold : _font, Height = Px(38),
-            Cursor = Cursors.Hand, UseVisualStyleBackColor = false, UseMnemonic = false, Margin = Padding.Empty,
-            BackColor = primary ? Ink : Color.White, ForeColor = primary ? Color.White : Ink,
-        };
-        b.FlatAppearance.BorderSize = primary ? 0 : 1;
-        b.FlatAppearance.BorderColor = Border;
-        b.FlatAppearance.MouseOverBackColor = primary ? Blend(Ink, Color.White, 0.15) : RowHover;
-        b.FlatAppearance.MouseDownBackColor = primary ? Color.Black : RowCurrent;
-        return b;
-    }
+    Button MakeButton(string text, bool primary) => Ui.MakeButton(text, primary, primary ? _bold : _font, Px(38));
 
     /// <summary>Buttons side by side, widths proportional to their weights.</summary>
     Panel ButtonRow(int width, params (Button Button, float Weight)[] items)
@@ -557,22 +494,6 @@ sealed class TaskWindow : Form
         using var pen = new Pen(color, 1.5f) { LineJoin = LineJoin.Round };
         g.DrawPolygon(pen, new PointF[] { new(10.5f, 2.5f), new(13.5f, 5.5f), new(6, 13), new(3, 13), new(3, 10) });
     }
-
-    public static GraphicsPath RoundedRect(RectangleF r, float radius)
-    {
-        var path = new GraphicsPath();
-        float d = Math.Min(radius * 2, Math.Min(r.Width, r.Height));
-        if (d <= 0) { path.AddRectangle(r); return path; }
-        path.AddArc(r.X, r.Y, d, d, 180, 90);
-        path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-        path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-        path.CloseFigure();
-        return path;
-    }
-
-    static Color Blend(Color a, Color b, double t) => Color.FromArgb(
-        (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
 
     /// <summary>One task in the list: click to start it, pencil to edit it.</summary>
     sealed class TaskRow : Control

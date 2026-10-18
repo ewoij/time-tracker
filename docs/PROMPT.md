@@ -2,7 +2,7 @@
 
 I need to log the time I spend on each task so I can bill my hours. I want a minimalist personal tool that takes as little screen space as possible. No data may leave the machine: everything stays local on my PC. Top priority: keep it simple.
 
-> Note: the app's user-facing text (labels, dialogs, Excel sheet and column names, event types) is quoted below in French, as in the original brief. Final UI language to be confirmed.
+The whole app is in English: UI text, Excel file, sheet and column names, event types.
 
 ## Technical constraints
 
@@ -60,24 +60,24 @@ Lead: a window with the WS_EX_TOOLWINDOW style seems to appear on all virtual de
 
 ## Data: a single Excel file, the source of truth
 
-All data lives in a single `heures.xlsx` file (configurable location). No other database or state file.
+All data lives in a single `hours.xlsx` file (configurable location). No other database or state file.
 
-"Tâches" sheet (tasks):
+"Tasks" sheet:
 
-| ID | Nom | Tags | Couleur |
+| ID | Name | Tags | Color |
 | --- | --- | --- | --- |
-| T1 | Rapport mensuel | #clientA, #facturable | #2F6FD6 |
+| T1 | Monthly report | #clientA, #billable | #2F6FD6 |
 
-"Événements" sheet (log, one row per state change):
+"Events" sheet (log, one row per state change):
 
-| Horodatage | Type | ID tâche |
+| Timestamp | Type | Task ID |
 | --- | --- | --- |
-| 17.10.2026 09:00 | Début | T1 |
-| 17.10.2026 10:15 | Début | T3 |
+| 17.10.2026 09:00 | Start | T1 |
+| 17.10.2026 10:15 | Start | T3 |
 | 17.10.2026 12:00 | Pause | |
 
-- Only two event types: "Début" (start) — start or resume a task, which implicitly ends the previous one — and "Pause" — stop without starting anything else. No "Stop" event.
-- Durations are not stored: they are derived from the time until the next event. If the app is closed, the last "Début" logically keeps counting.
+- Only two event types: "Start" (start or resume a task, which implicitly ends the previous one) and "Pause" (stop without starting anything else). No "Stop" event.
+- Durations are not stored: they are derived from the time until the next event. If the app is closed, the last "Start" logically keeps counting.
 - The app only writes by appending rows at the end of the events sheet, and only modifies the tasks sheet through its own actions (create, edit).
 - When reading, sort events by timestamp (I may insert rows anywhere by hand). Current task = the last event.
 - Events reference the task by ID: renaming a task does not break history. An unknown ID (task deleted by hand) must not crash the app: show it as "unknown task (T3)".
@@ -94,18 +94,18 @@ All data lives in a single `heures.xlsx` file (configurable location). No other 
 ## Session lock (Win+L)
 
 - Listen to Windows session lock / unlock events and keep the lock time in memory.
-- On unlock, if the lock lasted more than 5 minutes (configurable) and a task was running, show a small window: "Your PC was locked from 12:02 to 13:05 (1 h 03). It was: [Break] · [Still on "Rapport mensuel"] · [Another task…]".
-    - Break: add a Pause event at the lock time and a Début of the task at the unlock time.
+- On unlock, if the lock lasted more than 5 minutes (configurable) and a task was running, show a small window: "Your PC was locked from 12:02 to 13:05 (1 h 03). It was: [Break] · [Still on "Monthly report"] · [Another task…]".
+    - Break: add a Pause event at the lock time and a Start of the task at the unlock time.
     - Still on the task: add nothing.
-    - Another task: pick a task from the list, add its Début at the lock time.
+    - Another task: pick a task from the list, add its Start at the lock time.
 
 ## Startup check
 
-When the app starts, if the last event is a "Début" from a previous day, ask: "Last task: "Rapport mensuel", started yesterday at 16:30. What time did you stop?", and add the corresponding Pause. This covers forgetting to pause in the evening and a shutdown during a session lock.
+When the app starts, if the last event is a "Start" from a previous day, ask: "Last task: "Monthly report", started yesterday at 16:30. What time did you stop?", and add the corresponding Pause. This covers forgetting to pause in the evening and a shutdown during a session lock.
 
 ## For my Bash prompt (WSL)
 
-On every state change, also write a small text file `tache_en_cours.txt` (one line: task name, or "pause"), so my Bash prompt can display it with a simple `cat`, without reading the .xlsx. It is a display output only, not data.
+On every state change, also write a small text file `current_task.txt` (one line: task name, or "pause"), so my Bash prompt can display it with a simple `cat`, without reading the .xlsx. It is a display output only, not data.
 
 ## Settings (simple config file next to the exe)
 

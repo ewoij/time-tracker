@@ -109,7 +109,7 @@ sealed class TrackerContext : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitThread());
         _tray.ContextMenuStrip = menu;
-        _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ToggleWindow(); };
+        _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ToggleWindow(Cursor.Position); };
         _tray.Visible = true;
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
@@ -316,11 +316,13 @@ sealed class TrackerContext : ApplicationContext
         _window.Tick();
     }
 
-    void ToggleWindow()
+    /// <summary>Click on the tray icon or a status line; the window opens near the anchor.</summary>
+    void ToggleWindow(Point anchor)
     {
+        // The line never takes the focus, so a click on it leaves the window open: hidden here.
         if (_window.Visible) _window.Hide();
         // A click on the icon first deactivates the open window, which hides it: don't reopen it at once.
-        else if (Environment.TickCount64 - _window.HiddenAt > 300) _window.ShowNear(Cursor.Position);
+        else if (Environment.TickCount64 - _window.HiddenAt > 300) _window.ShowNear(anchor);
     }
 
     /// <summary>Brings the line, the icon, current_task.txt and the window in line with the state.</summary>
@@ -404,7 +406,8 @@ sealed class TrackerContext : ApplicationContext
         {
             var b = screen.Bounds;
             int y = _settings.LineAtBottom ? b.Bottom - thickness : b.Top;
-            var line = new StatusLineForm(new Rectangle(b.Left, y, b.Width, thickness), Data.StateColor);
+            var line = new StatusLineForm(new Rectangle(b.Left, y, b.Width, thickness), Data.StateColor,
+                _settings.LineClickable ? ToggleWindow : null);
             line.Show();
             _lines.Add(line);
         }

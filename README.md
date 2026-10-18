@@ -12,7 +12,7 @@ Remaining: final build / publish notes, validation on the real PC.
 
 ## Usage
 
-- **Status line**: color of the current task, gray when paused. One per screen.
+- **Status line**: color of the current task, gray when paused. One per screen. Left click opens / closes the task window, like the tray icon; about 40 px at each end stay click-through (e.g. for the close button of a maximized window). `"LineClickable": false` makes the whole line click-through.
 - **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → the version (grayed, e.g. `Time Tracker 1.0.0+354ed49`; `0.0.0-dev` for a local build), **Settings…** (opens `settings.json`), **Restart**, **Exit**. A yellow dot means the file is open for editing.
 - **Task window**: Pause / Resume in the header; click a task to start it (most recently used first); pencil to edit name, tags and color; "+ New task" suggests a color automatically ("Other" for another suggestion). Closes when it loses focus or on Esc.
 - **Edit in Excel**: the app releases the file, opens it in its default program and writes nothing until the file is closed again; then it reloads everything. If the editor does not lock the file, use "Done, reload".
@@ -30,6 +30,7 @@ Remaining: final build / publish notes, validation on the real PC.
   "CurrentTaskFile": "%USERPROFILE%\\Documents\\TimeTracker\\current_task.txt",
   "LinePosition": "Top",
   "LineThickness": 3,
+  "LineClickable": true,
   "UnlockQuestionMinutes": 5,
   "LaunchAtStartup": false,
   "BackupCount": 30
@@ -37,6 +38,7 @@ Remaining: final build / publish notes, validation on the real PC.
 ```
 
 - `LinePosition`: `Top` or `Bottom`. `LineThickness`: pixels.
+- `LineClickable`: a click on the status line (except near its ends) opens / closes the task window; `false` keeps it fully click-through.
 - `UnlockQuestionMinutes`: minimum lock duration before the session lock question.
 - `LaunchAtStartup`: adds / removes the app in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - `BackupCount`: number of daily backups kept.

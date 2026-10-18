@@ -21,6 +21,7 @@ sealed class Settings
     public string CurrentTaskFile { get; set; } = Path.Combine(DefaultFolder, "current_task.txt");
     public string LinePosition { get; set; } = "Top";
     public int LineThickness { get; set; } = 3;
+    public bool LineClickable { get; set; } = true;
     public int UnlockQuestionMinutes { get; set; } = 5;
     public bool LaunchAtStartup { get; set; }
     public int BackupCount { get; set; } = 30;

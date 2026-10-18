@@ -26,6 +26,10 @@ sealed class TaskWindow : Form
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
@@ -45,7 +49,7 @@ sealed class TaskWindow : Form
     readonly Button _pause;
     Label? _editStatus;
     Control? _focusTarget;
-    bool _creating, _dialogOpen;
+    bool _creating, _dialogOpen, _rebuildPending;
     string? _editingId;
     readonly List<Color> _rejectedColors = [];
     Point _anchor;
@@ -113,7 +117,7 @@ sealed class TaskWindow : Form
     public void ShowNear(Point cursor)
     {
         _anchor = cursor;
-        Rebuild();
+        RebuildNow();
         Show();
         Activate();
         SetForegroundWindow(Handle);
@@ -128,8 +132,28 @@ sealed class TaskWindow : Form
         if (_editStatus != null) _editStatus.Text = _app.EditStatus;
     }
 
+    /// <summary>
+    /// Rebuilds the content right after the current event: it is often triggered by a click on
+    /// a button that the rebuild disposes, which must not happen inside its own Click handler.
+    /// </summary>
     public void Rebuild()
     {
+        if (!IsHandleCreated)
+        {
+            RebuildNow();
+            return;
+        }
+        if (_rebuildPending) return;
+        _rebuildPending = true;
+        BeginInvoke(RebuildNow);
+    }
+
+    void RebuildNow()
+    {
+        _rebuildPending = false;
+        // Keep the focus on the window while its focused control is disposed,
+        // otherwise Windows may treat the window as deactivated.
+        ActiveControl = null;
         SuspendLayout();
         _root.SuspendLayout();
         var old = _root.Controls.Cast<Control>().ToList();
@@ -668,7 +692,12 @@ sealed class TaskWindow : Form
     protected override void OnDeactivate(EventArgs e)
     {
         base.OnDeactivate(e);
-        if (!_dialogOpen) Hide();
+        if (_dialogOpen) return;
+        // Check once things have settled: hide only if another window really took the foreground.
+        BeginInvoke(() =>
+        {
+            if (Visible && !_dialogOpen && GetForegroundWindow() != Handle) Hide();
+        });
     }
 
     protected override void OnVisibleChanged(EventArgs e)

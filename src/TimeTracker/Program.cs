@@ -7,17 +7,32 @@ namespace TimeTracker;
 
 static class Program
 {
+    /// <summary>Passed to the new instance by Restart.</summary>
+    public const string RestartArg = "--restart";
+
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
         // Two instances would fight over the lock on hours.xlsx.
-        using var mutex = new Mutex(true, @"Local\TimeTracker.SingleInstance", out bool first);
-        if (!first)
+        using var mutex = new Mutex(true, @"Local\TimeTracker.SingleInstance", out bool owned);
+        if (!owned && args.Contains(RestartArg))
+        {
+            // Started by Restart: the previous instance is exiting, wait until it releases the mutex
+            // (it does so after releasing hours.xlsx).
+            try { owned = mutex.WaitOne(TimeSpan.FromSeconds(10)); }
+            catch (AbandonedMutexException) { owned = true; /* it exited without releasing it: ours now */ }
+        }
+        if (!owned)
         {
             MessageBox.Show("Time Tracker is already running (see the notification area).", "Time Tracker");
             return;
         }
+        try { Run(); }
+        finally { mutex.ReleaseMutex(); }
+    }
 
+    static void Run()
+    {
         ApplicationConfiguration.Initialize();
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, e) =>
@@ -87,6 +102,9 @@ sealed class TrackerContext : ApplicationContext
         }
 
         var menu = new ContextMenuStrip();
+        menu.Items.Add("Settings…", null, (_, _) => OpenSettings());
+        menu.Items.Add("Restart", null, (_, _) => Restart());
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitThread());
         _tray.ContextMenuStrip = menu;
         _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ToggleWindow(); };
@@ -183,6 +201,34 @@ sealed class TrackerContext : ApplicationContext
         try { Process.Start(new ProcessStartInfo(_file.FilePath) { UseShellExecute = true }); }
         catch (Exception e) { LastError = "Could not open the file: " + e.Message; }
         Refresh();
+    }
+
+    void OpenSettings()
+    {
+        try { Settings.OpenInEditor(); }
+        catch (Exception e) { _tray.ShowBalloonTip(5000, "Time Tracker", "Could not open settings.json: " + e.Message, ToolTipIcon.Error); }
+    }
+
+    /// <summary>
+    /// Starts a new instance (to apply the settings) and exits this one. The new one waits in Main
+    /// until this one has released hours.xlsx and the single-instance mutex.
+    /// </summary>
+    void Restart()
+    {
+        // The new instance would only show the error and stop: keep this one running instead.
+        try { Settings.Load(); }
+        catch (Exception e)
+        {
+            MessageBox.Show($"Could not read {Settings.FilePath}:\n\n{e.Message}\n\nFix it, then restart.", "Time Tracker", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+        try { Process.Start(Environment.ProcessPath!, Program.RestartArg); }
+        catch (Exception e)
+        {
+            _tray.ShowBalloonTip(5000, "Time Tracker", "Could not restart: " + e.Message, ToolTipIcon.Error);
+            return;
+        }
+        ExitThread();
     }
 
     /// <summary>Takes the lock back and reloads everything (automatically, or with the "Done, reload" button).</summary>

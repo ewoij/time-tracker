@@ -13,7 +13,7 @@ Remaining: final build / publish notes, validation on the real PC.
 ## Usage
 
 - **Status line**: color of the current task, gray when paused. One per screen.
-- **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → Exit. A yellow dot means the file is open for editing.
+- **Tray icon**: same color; hover for the task name and elapsed time. Left click opens / closes the task window; right click → **Settings…** (opens `settings.json`), **Restart**, **Exit**. A yellow dot means the file is open for editing.
 - **Task window**: Pause / Resume in the header; click a task to start it (most recently used first); pencil to edit name, tags and color; "+ New task" suggests a color automatically ("Other" for another suggestion). Closes when it loses focus or on Esc.
 - **Edit in Excel**: the app releases the file, opens it in its default program and writes nothing until the file is closed again; then it reloads everything. If the editor does not lock the file, use "Done, reload".
 - **After a session lock** (Win+L) longer than `UnlockQuestionMinutes` with a task running, the app asks what it was: **Break** (adds a Pause at the lock time and restarts the task at the unlock time), **Still on** the task (adds nothing), or **Another task…** (starts the chosen task at the lock time). Not asked in edit mode.
@@ -22,7 +22,7 @@ Remaining: final build / publish notes, validation on the real PC.
 
 ## Settings
 
-`settings.json` next to the exe, created with the defaults on first run. Paths may use environment variables. Restart the app to apply changes.
+`settings.json` next to the exe, created with the defaults on first run. Paths may use environment variables. Changes apply on restart: use **Settings…** in the tray menu, save the file, then **Restart**. If .json files have no default program, Notepad is used.
 
 ```json
 {

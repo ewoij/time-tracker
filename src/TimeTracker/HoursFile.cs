@@ -104,17 +104,26 @@ sealed class HoursFile : IDisposable
     public TrackerData CreateTaskAndStart(string name, string tags, string color, DateTime time) => Modify(wb =>
     {
         var ws = Sheet(wb, TasksSheet);
-        int last = LastRow(ws);
+        var es = Sheet(wb, EventsSheet);
+        // Events count too: a task deleted by hand from Tasks keeps its history there, and
+        // reusing its ID would give that history to the new task.
+        int max = Math.Max(MaxTaskNumber(ws, 1), MaxTaskNumber(es, 3));
+        var newId = "T" + (max + 1);
+        WriteTask(ws, Math.Max(2, LastRow(ws) + 1), new TaskInfo(newId, name, tags, color));
+        AppendEventRow(es, time, "Start", newId);
+    });
+
+    /// <summary>Highest n among the IDs "T&lt;n&gt;" (any case) in a column, 0 if none. Reads every row, even invalid ones.</summary>
+    static int MaxTaskNumber(IXLWorksheet ws, int column)
+    {
         int max = 0;
-        for (int r = 2; r <= last; r++)
+        for (int r = 2; r <= LastRow(ws); r++)
         {
-            var id = Text(ws.Cell(r, 1));
+            var id = Text(ws.Cell(r, column));
             if (id.Length > 1 && char.ToUpperInvariant(id[0]) == 'T' && int.TryParse(id[1..], out var n)) max = Math.Max(max, n);
         }
-        var newId = "T" + (max + 1);
-        WriteTask(ws, Math.Max(2, last + 1), new TaskInfo(newId, name, tags, color));
-        AppendEventRow(Sheet(wb, EventsSheet), time, "Start", newId);
-    });
+        return max;
+    }
 
     public TrackerData UpdateTask(TaskInfo task) => Modify(wb =>
     {

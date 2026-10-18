@@ -190,7 +190,8 @@ sealed class TaskWindow : Form
     void LayoutHeader()
     {
         int h = _header.Height, left = Px(16), right = W - Px(14);
-        if (_pause.Visible)
+        // Not _pause.Visible: it reads false while the window itself is still hidden.
+        if (!_app.EditMode)
         {
             var size = new Size(TextRenderer.MeasureText("Resume", _bold).Width + Px(28), Px(34));
             _pause.SetBounds(right - size.Width, (h - size.Height) / 2, size.Width, size.Height);
@@ -619,9 +620,10 @@ sealed class TaskWindow : Form
                 right -= size.Width + Px(8);
             }
 
-            const TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
-            int nameH = TextRenderer.MeasureText(g, "Ag", _w._bold, Size.Empty, flags).Height;
-            int chipH = TextRenderer.MeasureText(g, "Ag", _w._monoSmall, Size.Empty, flags).Height + Px(2);
+            const TextFormatFlags measure = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+            const TextFormatFlags flags = measure | TextFormatFlags.EndEllipsis;
+            int nameH = TextRenderer.MeasureText(g, "Ag", _w._bold, Size.Empty, measure).Height;
+            int chipH = TextRenderer.MeasureText(g, "Ag", _w._monoSmall, Size.Empty, measure).Height + Px(2);
             int gap = Px(4);
             int top = _tags.Length == 0 ? (Height - nameH) / 2 : (Height - nameH - gap - chipH) / 2;
             TextRenderer.DrawText(g, _task.Name, _w._bold, new Rectangle(x, top, right - x, nameH), Ink, flags);
@@ -630,7 +632,7 @@ sealed class TaskWindow : Form
             using var chipBrush = new SolidBrush(ChipBack);
             foreach (var tag in _tags)
             {
-                int w = TextRenderer.MeasureText(g, tag, _w._monoSmall, Size.Empty, flags).Width + Px(12);
+                int w = TextRenderer.MeasureText(g, tag, _w._monoSmall, Size.Empty, measure).Width + Px(12);
                 if (cx + w > right) break;
                 using (var shape = RoundedRect(new RectangleF(cx, cy, w, chipH), Px(4)))
                     g.FillPath(chipBrush, shape);

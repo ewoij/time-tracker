@@ -1,6 +1,6 @@
-# Tracker de temps
+# Time Tracker
 
-Petit tracker de temps personnel pour Windows (C# / .NET) : une fine ligne colorée en haut de l'écran, une icône dans la zone de notification, et toutes les données dans un seul fichier `heures.xlsx` en local.
+A minimal personal time tracker for Windows (C# / .NET): a thin colored line at the top of the screen, a tray icon, and all data in a single local `heures.xlsx` file.
 
-- Cahier des charges : [docs/PROMPT.md](docs/PROMPT.md)
-- Maquette interactive de l'interface : https://claude.ai/artifact/6VbbWGJqTxWDKTyER8p2Sy (privée)
+- Specification: [docs/PROMPT.md](docs/PROMPT.md)
+- Interactive UI mockup: https://claude.ai/artifact/6VbbWGJqTxWDKTyER8p2Sy (private)

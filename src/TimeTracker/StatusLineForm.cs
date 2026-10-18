@@ -5,8 +5,8 @@ namespace TimeTracker;
 /// <summary>
 /// A thin borderless strip across one screen: always on top, click-through,
 /// never focused, hidden from the taskbar and Alt+Tab.
-/// WS_EX_TOOLWINDOW should also make it visible on every virtual desktop
-/// (undocumented behavior, to be confirmed in step 0).
+/// WS_EX_TOOLWINDOW also makes it visible on every virtual desktop
+/// (undocumented behavior, confirmed in step 0).
 /// </summary>
 sealed class StatusLineForm : Form
 {
@@ -50,6 +50,8 @@ sealed class StatusLineForm : Form
         _topmostTimer.Tick += (_, _) => BringToTop();
         _topmostTimer.Start();
     }
+
+    public void SetColor(Color color) => BackColor = color;
 
     protected override bool ShowWithoutActivation => true;
 

@@ -200,13 +200,15 @@ sealed class TrackerContext : ApplicationContext
         Refresh();
     }
 
-    /// <summary>Reads the locked file; if it cannot be read, releases it so it can be fixed by hand.</summary>
+    /// <summary>
+    /// Reads the locked file and regenerates its Summary sheet (it may have been edited by hand);
+    /// if it cannot be read, releases it so it can be fixed by hand.
+    /// </summary>
     bool ReloadOrRelease()
     {
         try
         {
             Data = _file.Load();
-            return true;
         }
         catch (Exception e)
         {
@@ -216,6 +218,11 @@ sealed class TrackerContext : ApplicationContext
             LastError = $"Could not read {Path.GetFileName(_file.FilePath)}: {e.Message} Fix it in Excel, then close it.";
             return false;
         }
+        // Nothing to sum up: don't rewrite the file.
+        if (Data.Events.Count == 0) return true;
+        try { Data = _file.RefreshSummary(); }
+        catch (Exception e) { LastError = "Could not update the Summary sheet: " + e.Message; }
+        return true;
     }
 
     bool Write(Func<TrackerData> write)

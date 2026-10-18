@@ -60,6 +60,29 @@ sealed class TrackerData
             .Select(t => TryParseColor(t.Color, out var c) ? c : (Color?)null).OfType<Color>().ToList();
     }
 
+    /// <summary>
+    /// Time spent per day and task: each Start lasts until the next event, the last one until
+    /// <paramref name="now"/> if it is still running. Pauses count nothing; midnight splits an interval.
+    /// </summary>
+    public List<(DateTime Day, string TaskId, TimeSpan Time)> DailyTotals(DateTime now)
+    {
+        var totals = new Dictionary<(DateTime Day, string TaskId), TimeSpan>();
+        for (int i = 0; i < Events.Count; i++)
+        {
+            var e = Events[i];
+            if (!e.IsStart) continue;
+            // The ID as written in Tasks, so "t1" and "T1" add up.
+            var id = Find(e.TaskId)?.Id ?? e.TaskId;
+            var end = i + 1 < Events.Count ? Events[i + 1].Time : now;
+            for (var from = e.Time; from < end; from = from.Date.AddDays(1))
+            {
+                var to = end < from.Date.AddDays(1) ? end : from.Date.AddDays(1);
+                totals[(from.Date, id)] = totals.GetValueOrDefault((from.Date, id)) + (to - from);
+            }
+        }
+        return totals.Select(t => (t.Key.Day, t.Key.TaskId, t.Value)).ToList();
+    }
+
     public static string FormatDuration(TimeSpan d, bool withSeconds)
     {
         if (d < TimeSpan.Zero) d = TimeSpan.Zero;

@@ -6,12 +6,13 @@ namespace TimeTracker;
 /// <summary>
 /// hours.xlsx, the single source of truth. While locked, the app keeps the file
 /// open with write access and lets other programs only read it, so it is the only writer.
-/// Writes only append rows to Events, or create / edit rows of Tasks.
+/// Writes only append rows to Events, or create / edit rows of Tasks. The Summary sheet is
+/// a derived view, regenerated on every write; it is never read.
 /// </summary>
 sealed class HoursFile : IDisposable
 {
-    const string TasksSheet = "Tasks", EventsSheet = "Events";
-    const string DateFormat = "dd.mm.yyyy hh:mm";
+    const string TasksSheet = "Tasks", EventsSheet = "Events", SummarySheet = "Summary";
+    const string DateFormat = "dd.mm.yyyy hh:mm", DayFormat = "dd.mm.yyyy";
     static readonly string[] TextDateFormats =
         ["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy HH:mm", "d.M.yyyy H:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-ddTHH:mm:ss"];
 
@@ -43,6 +44,7 @@ sealed class HoursFile : IDisposable
                 _stream = new FileStream(FilePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
                 using var wb = new XLWorkbook();
                 EnsureSheets(wb);
+                WriteSummary(wb, TrackerData.Empty, DateTime.Now);
                 Save(wb);
             }
             return true;
@@ -128,6 +130,9 @@ sealed class HoursFile : IDisposable
         throw new InvalidOperationException($"Task {task.Id} is no longer in the Tasks sheet.");
     });
 
+    /// <summary>Only regenerates the Summary sheet, e.g. after the file was edited by hand.</summary>
+    public TrackerData RefreshSummary() => Modify(_ => { });
+
     public void Dispose() => Unlock();
 
     TrackerData Modify(Action<XLWorkbook> change)
@@ -136,8 +141,10 @@ sealed class HoursFile : IDisposable
         Backup();
         using var wb = OpenWorkbook();
         change(wb);
+        var data = Parse(wb);
+        WriteSummary(wb, data, DateTime.Now);
         Save(wb);
-        return Parse(wb);
+        return data;
     }
 
     XLWorkbook OpenWorkbook()
@@ -231,6 +238,42 @@ sealed class HoursFile : IDisposable
         // Excel stores dates as floating point numbers: round to the second.
         time = new DateTime((time.Ticks + TimeSpan.TicksPerSecond / 2) / TimeSpan.TicksPerSecond * TimeSpan.TicksPerSecond);
         return true;
+    }
+
+    /// <summary>
+    /// Replaces the Summary sheet (always the last one): hours per day and task, as an Excel table
+    /// whose totals row only adds up the rows left visible by the filters.
+    /// </summary>
+    static void WriteSummary(XLWorkbook wb, TrackerData data, DateTime now)
+    {
+        EnsureSheets(wb);
+        if (wb.TryGetWorksheet(SummarySheet, out var old)) old.Delete();
+        var ws = AddSheet(wb, SummarySheet, ["Date", "Task ID", "Task", "Tags", "Hours"], [13, 11, 40, 30, 10])!;
+
+        var rows = data.DailyTotals(now)
+            .Select(t => (t.Day, t.TaskId, Name: data.NameOf(t.TaskId), Tags: data.Find(t.TaskId)?.Tags ?? "", Hours: t.Time.TotalHours))
+            .OrderBy(t => t.Day).ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        // Headers only without data: some programs reject an empty table.
+        if (rows.Count == 0) return;
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var row = ws.Row(i + 2);
+            row.Cell(1).Value = rows[i].Day;
+            row.Cell(2).Value = rows[i].TaskId;
+            row.Cell(3).Value = rows[i].Name;
+            row.Cell(4).Value = rows[i].Tags;
+            row.Cell(5).Value = rows[i].Hours;
+        }
+        var table = ws.Range(1, 1, rows.Count + 1, 5).CreateTable("SummaryTable");
+        table.ShowTotalsRow = true;
+        table.Field(0).TotalsRowLabel = "Total";
+        // SUBTOTAL(109, …): the sum of the rows left visible by the filters. Spelled out, because
+        // XLTotalsRowFunction.Sum writes "[Hours]" without the table name, which LibreOffice cannot resolve.
+        table.Field(4).TotalsRowFormulaA1 = "SUBTOTAL(109,SummaryTable[Hours])";
+        ws.Column(1).Style.NumberFormat.Format = DayFormat;
+        ws.Column(5).Style.NumberFormat.Format = "0.00";
     }
 
     static void AppendEventRow(IXLWorksheet ws, DateTime time, string type, string taskId)

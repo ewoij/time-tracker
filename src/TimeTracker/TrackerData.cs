@@ -120,10 +120,10 @@ sealed class TrackerData
     /// <summary>"#clientA" and "clientA" are the same tag (case is ignored too).</summary>
     public static string TagKey(string tag) => tag.Trim().TrimStart('#');
 
-    /// <summary>"#a,  #b ,," → ["#a", "#b"]</summary>
+    /// <summary>"a,  b ,," → ["a", "b"]</summary>
     public static IEnumerable<string> SplitTags(string text) =>
         text.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0);
 
-    /// <summary>"#a,  #b ,," → "#a, #b"</summary>
+    /// <summary>"a,  b ,," → "a, b"</summary>
     public static string NormalizeTags(string text) => string.Join(", ", SplitTags(text));
 }

@@ -53,7 +53,7 @@ sealed class TagEditor : Panel
         };
         _input.TextChanged += (_, _) =>
         {
-            // Pasted "#a, #b": add all but the part still being typed.
+            // Pasted "a, b": add all but the part still being typed.
             if (_input.Text.Contains(','))
             {
                 var parts = _input.Text.Split(',');
@@ -77,7 +77,7 @@ sealed class TagEditor : Panel
         UpdateChips();
     }
 
-    /// <summary>The tags, including the one still being typed, as "#a, #b".</summary>
+    /// <summary>The tags, including the one still being typed, as "a, b".</summary>
     public string Read()
     {
         Add(_input.Text, matchKnown: true);
@@ -143,7 +143,7 @@ sealed class TagEditor : Panel
         }
         Controls.AddRange(_suggestions.ToArray());
 
-        _input.PlaceholderText = _tags.Count == 0 ? "#clientC, #billable" : "add a tag";
+        _input.PlaceholderText = _tags.Count == 0 ? "clientC, billable" : "add a tag";
         ResumeLayout();
         LayoutContent();
     }

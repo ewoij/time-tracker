@@ -69,7 +69,17 @@ dotnet publish src/TimeTracker -c Release -r win-x64 --self-contained -p:Publish
 
 ## Making a release
 
-To make a release: GitHub → **Releases** → **Draft a new release** → create a tag `vX.Y.Z` → **Publish release**. The [Release workflow](../.github/workflows/release.yml) builds `TimeTracker.exe` with version `X.Y.Z` and attaches it to the release (about 5 minutes). The version shows at the top of the tray right-click menu.
+To make a release, either:
+
+- GitHub → **Releases** → **Draft a new release** → create a tag `vX.Y.Z` → **Publish release** (lets you write release notes), or
+- push a tag from the command line; the release is then created automatically:
+
+  ```
+  git tag vX.Y.Z
+  git push origin vX.Y.Z
+  ```
+
+Either way, the [Release workflow](../.github/workflows/release.yml) builds `TimeTracker.exe` with version `X.Y.Z` and attaches it to the release (about 5 minutes). The version shows at the top of the tray right-click menu.
 
 **Run workflow** on the Actions tab (Release workflow) makes a test build (`0.0.0-ci`) without a release: the exe is in the run's `TimeTracker` artifact.
 

@@ -12,7 +12,6 @@ namespace TimeTracker;
 sealed class TaskWindow : Form
 {
     static readonly Color Subtle = ColorTranslator.FromHtml("#5B6570");
-    static readonly Color ChipBack = ColorTranslator.FromHtml("#E8ECF0");
     static readonly Color Invalid = ColorTranslator.FromHtml("#FDECEA");
     static readonly Color ExcelDot = ColorTranslator.FromHtml("#F5C542");
 
@@ -235,18 +234,23 @@ sealed class TaskWindow : Form
             Width = W,
         };
         var rows = BuildRows(W - list.Padding.Horizontal);
-        int height = rows.Sum(r => r.Height + r.Margin.Vertical) + list.Padding.Vertical;
-        if (height > Px(300))
+        int ContentHeight() => rows.Sum(r => r.Height + r.Margin.Vertical) + list.Padding.Vertical;
+        bool scroll = ContentHeight() > Px(300);
+        if (scroll)
         {
             // Too many tasks: scroll, and leave room for the scrollbar.
             foreach (var r in rows) r.Dispose();
             rows = BuildRows(W - list.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
-            height = Px(300);
         }
-        list.Height = height;
+        list.Height = scroll ? Px(300) : ContentHeight();
         list.Controls.AddRange(rows.ToArray());
         _root.Controls.Add(list);
-        if (_editingId != null && rows.FirstOrDefault(r => r is Panel) is { } editor) list.ScrollControlIntoView(editor);
+        if (_editingId != null && rows.FirstOrDefault(r => r is Panel) is { } editor)
+        {
+            list.ScrollControlIntoView(editor);
+            // The editor grows with its tags: without a scrollbar, the list grows with it.
+            if (!scroll) editor.SizeChanged += (_, _) => list.Height = ContentHeight();
+        }
 
         if (_app.Data.SkippedRows > 0)
         {
@@ -365,12 +369,13 @@ sealed class TaskWindow : Form
 
     sealed class TaskFields
     {
-        public required TextBox Name, Tags, Hex;
+        public required TextBox Name, Hex;
+        public required TagEditor Tags;
 
         public bool TryRead(out string name, out string tags, out string color)
         {
             name = Name.Text.Trim();
-            tags = TrackerData.NormalizeTags(Tags.Text);
+            tags = Tags.Read();
             color = TrackerData.NormalizeHex(Hex.Text) ?? "";
             Name.BackColor = name.Length == 0 ? Invalid : Color.White;
             Hex.BackColor = color.Length == 0 ? Invalid : Color.White;
@@ -383,14 +388,14 @@ sealed class TaskWindow : Form
     TaskFields AddTaskFields(Stack s, TaskInfo? task, string colorLabel, bool suggest)
     {
         var name = new TextBox { Text = task?.Name ?? "", Font = _font, PlaceholderText = "e.g. Client C offer" };
-        var tags = new TextBox { Text = task?.Tags ?? "", Font = _monoField, PlaceholderText = "#clientC, #billable" };
+        var tags = new TagEditor(task?.Tags ?? "", _app.Data.KnownTags(), _monoField, _monoSmall, Px);
         var initial = suggest ? ColorSuggester.Suggest(_app.Data.RecentColors())
             : TrackerData.TryParseColor(task?.Color, out var c) ? c : TrackerData.UnknownColor;
         var hex = new TextBox { Text = TrackerData.ToHex(initial), Font = _monoField, PlaceholderText = "#2F6FD6" };
 
         s.Add(FieldLabel("Name"), Px(4));
         s.Add(name, Px(10));
-        s.Add(FieldLabel("Tags (comma-separated)"), Px(4));
+        s.Add(FieldLabel("Tags (Enter to add; click a tag below to reuse it)"), Px(4));
         s.Add(tags, Px(10));
         s.Add(FieldLabel(colorLabel), Px(4));
 
@@ -513,7 +518,7 @@ sealed class TaskWindow : Form
             _task = task;
             _color = color;
             _current = current;
-            _tags = task.Tags.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToArray();
+            _tags = TrackerData.SplitTags(task.Tags).ToArray();
             Size = new Size(width, w.Px(52));
             Margin = new Padding(0, 0, 0, w.Px(2));
             Cursor = Cursors.Hand;

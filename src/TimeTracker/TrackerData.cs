@@ -106,7 +106,24 @@ sealed class TrackerData
 
     public static string ToHex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
+    /// <summary>
+    /// Tags used by the tasks, those of the most recently worked on tasks first. Spellings that
+    /// differ only by case or "#" count as one tag, written the most common way.
+    /// </summary>
+    public List<string> KnownTags() =>
+        // GroupBy keeps the order of first appearance.
+        TasksByRecentUse().SelectMany(t => SplitTags(t.Tags))
+            .GroupBy(TagKey, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.GroupBy(t => t).OrderByDescending(s => s.Count()).First().Key)
+            .ToList();
+
+    /// <summary>"#clientA" and "clientA" are the same tag (case is ignored too).</summary>
+    public static string TagKey(string tag) => tag.Trim().TrimStart('#');
+
+    /// <summary>"#a,  #b ,," → ["#a", "#b"]</summary>
+    public static IEnumerable<string> SplitTags(string text) =>
+        text.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0);
+
     /// <summary>"#a,  #b ,," → "#a, #b"</summary>
-    public static string NormalizeTags(string text) =>
-        string.Join(", ", text.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0));
+    public static string NormalizeTags(string text) => string.Join(", ", SplitTags(text));
 }

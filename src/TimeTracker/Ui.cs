@@ -12,6 +12,7 @@ static class Ui
     public static readonly Color Divider = ColorTranslator.FromHtml("#E8EBEF");
     public static readonly Color RowCurrent = ColorTranslator.FromHtml("#EEF1F4");
     public static readonly Color RowHover = ColorTranslator.FromHtml("#F4F6F8");
+    public static readonly Color ChipBack = ColorTranslator.FromHtml("#E8ECF0");
     public static readonly Color ChipText = ColorTranslator.FromHtml("#3D4752");
     public static readonly Color ErrorText = ColorTranslator.FromHtml("#B3261E");
 
@@ -66,16 +67,18 @@ static class Ui
         (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
 }
 
-/// <summary>Stacks controls vertically at full inner width, with fixed gaps.</summary>
+/// <summary>
+/// Stacks controls vertically at full inner width, with fixed gaps.
+/// Follows their height when it changes (e.g. the tag editor growing).
+/// </summary>
 sealed class Stack
 {
     readonly int _pad;
-    int _y;
+    readonly List<(Control Control, int GapAfter)> _items = [];
 
     public Stack(int width, int pad)
     {
         _pad = pad;
-        _y = pad;
         Panel = new Panel { Width = width, Height = 2 * pad, Margin = Padding.Empty };
     }
 
@@ -85,12 +88,22 @@ sealed class Stack
 
     public T Add<T>(T c, int gapAfter) where T : Control
     {
-        c.Location = new Point(_pad, _y);
         if (c is not Label { AutoSize: true }) c.Width = Inner;
         Panel.Controls.Add(c);
-        _y += c.Height;
-        Panel.Height = _y + _pad;
-        _y += gapAfter;
+        _items.Add((c, gapAfter));
+        c.SizeChanged += (_, _) => Arrange();
+        Arrange();
         return c;
+    }
+
+    void Arrange()
+    {
+        int y = _pad;
+        foreach (var (c, gapAfter) in _items)
+        {
+            c.Location = new Point(_pad, y);
+            y += c.Height + gapAfter;
+        }
+        Panel.Height = y - _items[^1].GapAfter + _pad;
     }
 }

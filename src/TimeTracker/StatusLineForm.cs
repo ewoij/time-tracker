@@ -30,11 +30,20 @@ sealed class StatusLineForm : Form
         public Point ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
     [DllImport("user32.dll")]
     static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 
     [DllImport("user32.dll")]
     static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    [DllImport("user32.dll")]
+    static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 
     [DllImport("user32.dll")]
     static extern int GetWindowLong(IntPtr hWnd, int index);
@@ -61,7 +70,8 @@ sealed class StatusLineForm : Form
         BackColor = color;
         Bounds = bounds;
 
-        // Other topmost windows (or a fullscreen app) can end up above us: re-assert regularly.
+        // Other topmost windows (or a fullscreen app) can end up above us, and Windows may
+        // resize us when the screens change (a DPI change on unlock or docking): re-assert regularly.
         _topmostTimer.Tick += (_, _) => BringToTop();
         _topmostTimer.Start();
 
@@ -134,8 +144,14 @@ sealed class StatusLineForm : Form
         }
     }
 
-    void BringToTop() =>
-        SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    void BringToTop()
+    {
+        // Compare the real window rectangle: WinForms' Bounds can lag behind after a DPI change.
+        bool exact = GetWindowRect(Handle, out var r) && r.Left == _bounds.Left && r.Top == _bounds.Top
+            && r.Right == _bounds.Right && r.Bottom == _bounds.Bottom;
+        uint keep = exact ? SWP_NOMOVE | SWP_NOSIZE : 0;
+        SetWindowPos(Handle, HWND_TOPMOST, _bounds.X, _bounds.Y, _bounds.Width, _bounds.Height, keep | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
 
     protected override void Dispose(bool disposing)
     {
